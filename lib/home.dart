@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as parser;
 
 import 'book.dart';
+import 'bookDetail.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -106,7 +107,11 @@ class _HomeBodyState extends State<HomeBody> {
     }
   }
 
-  bool isLiked = false;
+  bool isLiked          = false;
+  bool isFilterSelected = false;
+  List<Color> containerColors = List<Color>.generate(catList.length, (index) => Colors.grey);
+  int selectedIndex = -1;
+
 
   @override
   Widget build(BuildContext context) {
@@ -135,28 +140,34 @@ class _HomeBodyState extends State<HomeBody> {
                    children: [
                      Image(
                        image: AssetImage('assets/filterIcon.png'),
-                       width: 40,
-                       height: 40,
+                       width: 26,
+                       height: 26,
                      ),
 
-                     for(int i = 2; i<catList.length ; i++)
-                       Container(
-                           padding: EdgeInsets.all(4),
-                           margin: EdgeInsets.all(2),
-                           decoration: BoxDecoration(
-                             color: Colors.grey,
-                             borderRadius: BorderRadius.circular(7), // Adjust the value as needed
-                           ),
-                           child: GestureDetector(
-                             onTap: (){
-                               setState(() {
-                                 filter = catList[i].split('[')[0];
-                                 getBookData(catLink[i]);
-                               });
-                             },
-                             child: Text(catList[i].split('[')[0]),
-                           )
-                       )
+                     SizedBox(width: 4,),
+
+                 for(int i = 3; i < catList.length; i++)
+                         Container(
+                          padding: EdgeInsets.all(4),
+                          margin: EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            color: selectedIndex == i ? Colors.green : Colors.grey, // Set the color conditionally
+                            borderRadius: BorderRadius.circular(7), // Adjust the value as needed
+                          ),
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                filter = catList[i].split('[')[0];
+                                getBookData(catLink[i]);
+                                // Update the index of the selected container
+                                selectedIndex = i;
+                              });
+                            },
+                            child: Text(catList[i].split('[')[0]),
+                          ),
+                        ),
+
+
                    ],
                  ),
                ),
@@ -180,6 +191,13 @@ class _HomeBodyState extends State<HomeBody> {
               GestureDetector(
                 onTap: (){
                   print(bookList[i].detailPageLink);
+
+                  BookDetail.bookLink = bookList[i].detailPageLink;
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => BookDetail()),
+                  );
+
                 },
                 child:  Container(
                   decoration: BoxDecoration(
