@@ -50,6 +50,9 @@ dev_dependencies:
   html: ^0.15.4
   flutter_pdfview: ^1.2.7
   path_provider: ^2.0.2
+  shared_preferences: ^2.2.2
+
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 

@@ -1,3 +1,4 @@
+import 'package:competenteducator/read.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
@@ -56,7 +57,7 @@ class _BookDetailBodyState extends State<BookDetailBody> {
   PDFViewController? pdfController;
 
 
-  Book book = Book("", "", "desc", false, "");
+  Book book = Book("", "", "desc", false, ""  );
   bool isLoading = true; // Track loading state
 
   void getBookData(String link) async {
@@ -79,8 +80,25 @@ class _BookDetailBodyState extends State<BookDetailBody> {
       String abstract =
       (document.querySelector(".simple-item-view-description.item-page-field-wrapper.table")!.text.toString());
 
+      String pdfLink = "";
+      var aElements = document.querySelectorAll('a[href]');
+
+      // Iterate over the <a> elements
+      for (var element in aElements) {
+        // Get the href attribute of the <a> element
+        String? href = element.attributes['href'];
+
+        // Check if href is not null and ends with ".pdf"
+        if (href != null && href.endsWith('.pdf')) {
+          // Print the link if it ends with ".pdf"
+          print("PDF Link: $href");
+
+          pdfLink = href;
+        }
+      }
+
       setState(() {
-        book = Book(bookLink, title, abstract, false, "");
+        book = Book(bookLink, title, abstract, false, pdfLink);
         isLoading = false; // Set loading state to false when data fetching is complete
       });
     } else {
@@ -93,14 +111,13 @@ class _BookDetailBodyState extends State<BookDetailBody> {
 
   Future<void> downloadPdf() async {
     // The URL of the PDF you want to download.
-    final pdfUrl = 'https://library.oapen.org/bitstream/handle/20.500.12657/40057/9781138422575.pdf';
+    final pdfUrl = book.detailPageLink;
 
-    // Send a GET request to the URL
+    print(pdfUrl);
+
     final response = await http.get(Uri.parse(pdfUrl));
 
-    // Check if the request was successful (status code 200)
     if (response.statusCode == 200) {
-      // Get the directory for the app's documents
       final directory = await getApplicationDocumentsDirectory();
 
       // Define the file path where the PDF will be saved
@@ -111,6 +128,10 @@ class _BookDetailBodyState extends State<BookDetailBody> {
       await file.writeAsBytes(response.bodyBytes);
 
       print('PDF downloaded successfully to $filePath');
+
+
+
+      Read.filePath = filePath;
     } else {
       // Print an error message if the request fails
       print('Failed to download PDF: ${response.statusCode}');
@@ -154,9 +175,58 @@ class _BookDetailBodyState extends State<BookDetailBody> {
                       width: 160,
                       height: 40,
                       child: TextButton(
-                        onPressed: () {
-                          downloadPdf();
-                        },
+                        onPressed: () async {
+
+                          if(book.detailPageLink != ""){
+                          showDialog(
+                          context: context,
+                          builder: (BuildContext context) {
+                          return AlertDialog(
+                          content: Row(
+                          children: [
+                          CircularProgressIndicator(),
+                          SizedBox(width: 20),
+                          Text("Loading..."),
+                          ],
+                          ),
+                          );
+                          },
+                          );
+
+                          await downloadPdf().then((_) {
+                          Navigator.pop(context); // downloadPdf tamamlandığında AlertDialog'u kapat
+                          });
+
+
+                          Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => Read()),
+
+                          );
+
+                          }else{
+                            showDialog(
+                              context: context,
+                              builder: (BuildContext context) {
+                                return AlertDialog(
+                                  title: Text('PDF Not Found'),
+                                  content: Text('The requested PDF file was not found.'),
+                                  actions: <Widget>[
+                                    TextButton(
+                                      onPressed: () {
+                                        // Close the dialog
+                                        Navigator.of(context).pop();
+                                      },
+                                      child: Text('OK'),
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
+                          }
+
+
+                          },
                         style: ButtonStyle(
                           backgroundColor:
                           MaterialStateProperty.all(Colors.green),
@@ -222,64 +292,7 @@ class _BookDetailBodyState extends State<BookDetailBody> {
             Text(book!.desc.toString().replaceAll("Abstract\n", "")),
 
 
-                      Center(
-                        child: Column(
-                          children: [
-                            Container(
-                              width: MediaQuery.of(context).size.width,
-                              height: MediaQuery.of(context).size.height * 0.8, // Adjust height as needed
-                              child: PDFView(
-                                filePath: "/data/user/0/com.example.competenteducator/app_flutter/pspdfkit_flutter_quickstart_guide.pdf",
-                                enableSwipe: true,
-                                swipeHorizontal: true,
-                                autoSpacing: false,
-                                pageSnap: true,
-                                defaultPage: currentPage,
-                                fitPolicy: FitPolicy.WIDTH,
-                                onPageChanged: (page, total) {
-                                  setState(() {
-                                    currentPage = page!;
-                                  });
-                                },
-                                onViewCreated: (PDFViewController vc) {
-                                  setState(() {
-                                    pdfController = vc;
-                                  });
-                                },
-                              ),
-                            ),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                IconButton(
-                                  icon: Icon(Icons.navigate_before),
-                                  onPressed: () {
-                                    if (currentPage > 0 && pdfController != null) {
-                                      pdfController!.setPage(currentPage - 1);
-                                    }
-                                  },
-                                ),
-                                Text(
-                                  '${currentPage + 1}',
-                                  style: TextStyle(fontSize: 20.0),
-                                ),
-                                IconButton(
-                                  icon: Icon(Icons.navigate_next),
-                                  onPressed: () {
-                                    if (pdfController != null) {
-                                      pdfController!.getPageCount().then((count) {
-                                        if (currentPage < count! - 1) {
-                                          pdfController!.setPage(currentPage + 1);
-                                        }
-                                      });
-                                    }
-                                  },
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
+
 
 
 

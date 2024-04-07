@@ -1,81 +1,34 @@
-import 'package:competenteducator/favoritePage.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as parser;
-
+import 'package:shared_preferences/shared_preferences.dart';
 import 'book.dart';
 import 'bookDetail.dart';
 
-class Home extends StatefulWidget {
-  const Home();
 
-  @override
-  State<Home> createState() => _HomeState();
-}
 
-class _HomeState extends State<Home> {
-  int _selectedIndex = 0;
 
-  static const List<Widget> _widgetOptions = <Widget>[
-    HomeBody(),
-    FavoritePage(),
-    SearchPage(),
-  ];
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
+class FavoritePage extends StatelessWidget {
+  const FavoritePage({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.white70,
-        title: Center(
-          child: Container(
-          margin: EdgeInsets.only(top: 22),
-          child: Image(
-            image: AssetImage('assets/logo.png'),
-            width: 110,
-          ),
-        ),
-        ),
-      ),
-      body: _widgetOptions.elementAt(_selectedIndex),
-      bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.menu_book),
-            label: 'Book',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.favorite),
-            label: 'Favorites', 
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.search),
-            label: 'Search',
-          ),
-        ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: Colors.green,
-        onTap: _onItemTapped,
-      ),
+      body: FavoriteBody()
     );
   }
 }
 
-class HomeBody extends StatefulWidget {
-  const HomeBody({Key? key}) : super(key: key);
+
+class FavoriteBody extends StatefulWidget {
+  const FavoriteBody({super.key});
 
   @override
-  State<HomeBody> createState() => _HomeBodyState();
+  State<FavoriteBody> createState() => _FavoriteBodyState();
 }
 
-class _HomeBodyState extends State<HomeBody> {
-  List<String> catList = [];
+class _FavoriteBodyState extends State<FavoriteBody> {
+   List<String> catList = [];
   List<String> catLink = [];
   List<Book> bookList = [];
   String filter = "";
@@ -85,7 +38,6 @@ class _HomeBodyState extends State<HomeBody> {
   void initState() {
     super.initState();
     getData();
-    getBookData("browse?type=classification_text&value=Accident+and+emergency+medicine");
   }
 
   void getData() async {
@@ -281,7 +233,6 @@ class _HomeBodyState extends State<HomeBody> {
                               ),
                               onPressed: () {
                                 setState(() {
-                                  print(bookList[i].detailPageLink);
                                   bookList[i].isFavorite = !bookList[i].isFavorite; // İkon durumunu tersine çevirir.
                                 });
                               },
@@ -294,28 +245,6 @@ class _HomeBodyState extends State<HomeBody> {
                 ),
               )
           ],
-        ),
-      ),
-    );
-  }
-}
-
-
-
-
-class SearchPage extends StatelessWidget {
-  const SearchPage({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: Container(
-          width: 180,
-          child: Text(
-          "It's empty here, enter a query in order to find the literature you are interested in.",
-          style: TextStyle(fontSize: 15),
-        ),
         ),
       ),
     );
