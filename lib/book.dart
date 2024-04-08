@@ -9,4 +9,15 @@ class Book{
 
   Book(this.imgLink,this.name,this.desc,this.isFavorite,this.detailPageLink);
 
+  Map<String, dynamic> toMap() {
+    return {
+      'imgLink': imgLink,
+      'name': name,
+      'desc': desc,
+      'isFavorite': isFavorite,
+      'detailPageLink': detailPageLink,
+    };
+  }
+
+
 }

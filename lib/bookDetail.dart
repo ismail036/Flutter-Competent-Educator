@@ -1,3 +1,5 @@
+import 'dart:ffi';
+
 import 'package:competenteducator/read.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -10,10 +12,14 @@ import 'package:path_provider/path_provider.dart';
 
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 
+import 'dbHelper.dart';
+
 class BookDetail extends StatelessWidget {
   const BookDetail({super.key});
 
   static String bookLink = "";
+
+  static Book book = Book("", "", "", false, "");
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +39,7 @@ class BookDetail extends StatelessWidget {
           ),
         ),
         title: Container(
-          margin: EdgeInsets.only(top: 22, left: 85),
+          margin: EdgeInsets.only(top: 20, left: 100),
           child: Image(
             image: AssetImage('assets/logo.png'),
             width: 110,
@@ -144,6 +150,39 @@ class _BookDetailBodyState extends State<BookDetailBody> {
     getBookData(BookDetail.bookLink);
   }
 
+  List<Book> books = [];
+  List<String> bookLinkList = [];
+  bool isFavorite = BookDetail.book.isFavorite;
+
+
+
+  Future<void> getBookDb() async {
+    DbHelper db = DbHelper();
+    await db.open();
+    books = await db.getBooks();
+    for (var book in books) {
+      bookLinkList.add(book.detailPageLink);
+    }
+  }
+
+  Future<void> addBookDb(Book book) async{
+    DbHelper db = DbHelper();
+    await db.open();
+    db.insertBook(book);
+    getBookDb();
+    print("Book added");
+  }
+
+  Future<void> deleteBook(Book book) async{
+    DbHelper db = DbHelper();
+    await db.open();
+    db.deleteBookByDetailPageLink(book.detailPageLink);
+    bookLinkList.clear();
+    getBookDb();
+  }
+
+
+
   @override
   Widget build(BuildContext context) {
     print(book?.name);
@@ -250,7 +289,11 @@ class _BookDetailBodyState extends State<BookDetailBody> {
                       height: 40,
                       child: TextButton(
                         onPressed: () {
-                          // Düğmeye tıklandığında yapılacak işlemler
+                          setState(() {
+                            isFavorite ? deleteBook(BookDetail.book) : addBookDb(BookDetail.book);
+                            isFavorite = !isFavorite;
+                            print(isFavorite);
+                          });
                         },
                         style: ButtonStyle(
                           backgroundColor:
@@ -269,9 +312,11 @@ class _BookDetailBodyState extends State<BookDetailBody> {
                               style: TextStyle(fontSize: 14, color: Colors.white),
                             ),
                             SizedBox(width: 10,),
-                            Icon(Icons.favorite,
+                            isFavorite ?  Icon(Icons.favorite,
                               color: Colors.white,
-                            ), // Heart (kalp) icon
+                            ) : Icon(Icons.favorite_border,
+                              color: Colors.white,
+                            ),  // Heart (kalp) icon
                           ],
                         ),
                       ),

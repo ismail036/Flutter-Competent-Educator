@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:html/parser.dart' as parser;
-import 'package:shared_preferences/shared_preferences.dart';
+
 import 'book.dart';
-import 'bookDetail.dart';
+import 'dbHelper.dart';
 import 'package:competenteducator/favoritePage.dart';
+import 'package:competenteducator/searchPage.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as parser;
@@ -13,28 +12,17 @@ import 'book.dart';
 import 'bookDetail.dart';
 import 'dbHelper.dart';
 
-
-
-class FavoritePage extends StatelessWidget {
-  const FavoritePage({Key? key}) : super(key: key);
+class SearchPageBody extends StatefulWidget {
+  const SearchPageBody({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: FavoriteBody()
-    );
-  }
+  State<SearchPageBody> createState() => _SearchPageBodyState();
 }
 
+class _SearchPageBodyState extends State<SearchPageBody> {
+  TextEditingController _controller = TextEditingController();
+  String _searchText = '';
 
-class FavoriteBody extends StatefulWidget {
-  const FavoriteBody({super.key});
-
-  @override
-  State<FavoriteBody> createState() => _FavoriteBodyState();
-}
-
-class _FavoriteBodyState extends State<FavoriteBody> {
   List<Book> books = [];
   List<String> bookLinkList = [];
   List<String> catList = [];
@@ -43,71 +31,38 @@ class _FavoriteBodyState extends State<FavoriteBody> {
   String filter = "";
   int selectedIndex = -1;
 
-  @override
-  void initState() {
-    super.initState();
-    getData();
-    getBookData("browse?type=classification_text&value=Accident+and+emergency+medicine");
-  }
-
-  void getData() async {
-    await getBookDb();
-    final Uri url = Uri.parse(
-        'https://directory.doabooks.org/browse?rpp=1000&sort_by=-1&type=classification_text&etal=-1&starts_with=A&order=ASC');
-    final response = await http.get(url);
-    if (response.statusCode == 200) {
-      print("l");
-      final document = parser.parse(response.body);
-      final elements = document.querySelectorAll('.ds-table-cell.odd');
-      for (var element in elements) {
-        setState(() {
-          catList.add(element.text);
-        });
-        final anchor =
-        element.querySelector('a'); // Her bir elementin içindeki <a> etiketini seçiyoruz
-        if (anchor != null) {
-          setState(() {
-            print(catLink);
-            catLink.add(anchor.attributes['href'].toString());
-          });
-        }
-      }
-    } else {
-      print('Failed to load page: ${response.statusCode}');
-    }
-  }
-
-
 
   void getBookData(String link) async {
     print(link);
     bookList.clear();
     await getBookDb();
-    final Uri url = Uri.parse('https://directory.doabooks.org/${link}');
+    final Uri url = Uri.parse('https://directory.doabooks.org/discover?query=${link}');
     final response = await http.get(url);
+    print(response.statusCode);
     if (response.statusCode == 200) {
       final document = parser.parse(response.body);
       print(document);
-      final elements = document.querySelectorAll('.ds-artifact-item.odd');
+      final elements = document.querySelectorAll('.row.ds-artifact-item');
       for (var element in elements) {
         String bookLink =
         ("https://directory.doabooks.org/${element.querySelector("img")?.attributes['src'].toString().split("?")[0]}");
-        String title = (element.querySelector(".artifact-title")!.text.toString());
-        String abstract = (element.querySelector(".artifact-abstract")!.text.toString());
+        String title = (element.querySelector("h4")!.text.toString());
+        String abstract = (element.querySelector(".abstract")!.text.toString());
         String detailPageLink =
         ("https://directory.doabooks.org/${element.querySelector("a")?.attributes['href'].toString()}");
         if(bookLinkList.contains(detailPageLink)){
           Book book = Book(bookLink, title, abstract, true, detailPageLink);
+          print(book.name);
           setState(() {
             bookList.add(book);
           });
         }else{
           Book book = Book(bookLink, title, abstract, false, detailPageLink);
+          print(book.name);
           setState(() {
             bookList.add(book);
           });
         }
-
       }
     } else {
       print('Failed to load page: ${response.statusCode}');
@@ -132,9 +87,10 @@ class _FavoriteBodyState extends State<FavoriteBody> {
 
     getBookDb();
 
-
     print(bookList[i].detailPageLink);
   }
+
+
 
   Future<void> deleteBook(String bookLink) async{
     DbHelper db = DbHelper();
@@ -144,82 +100,54 @@ class _FavoriteBodyState extends State<FavoriteBody> {
     getBookDb();
   }
 
+
   @override
   Widget build(BuildContext context) {
-    print(catList.length);
-    getBookDb();
     return Container(
-      color: Colors.white70,
-      padding: EdgeInsets.all(7),
       child: SingleChildScrollView(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.start,
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(
-              height: 10,
-            ),
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.grey[200],
-                borderRadius: BorderRadius.circular(7), // Adjust the value as needed
-              ),
-              padding: EdgeInsets.all(6),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Container(
+                margin: EdgeInsets.all(8), // Add margin around the container
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(10), // Set border radius for rounded corners
+                ),
                 child: Row(
                   children: [
-                    Image(
-                      image: AssetImage('assets/filterIcon.png'),
-                      width: 26,
-                      height: 26,
-                    ),
-                    SizedBox(
-                      width: 4,
-                    ),
-                    for (int i = 3; i < catList.length; i++)
-                      Container(
-                        padding: EdgeInsets.all(4),
-                        margin: EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          color: selectedIndex == i ? Colors.green : Colors.grey, // Set the color conditionally
-                          borderRadius: BorderRadius.circular(7), // Adjust the value as needed
-                        ),
-                        child: GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              filter = catList[i].split('[')[0];
-                              getBookData(catLink[i]);
-                              // Update the index of the selected container
-                              selectedIndex = i;
-                            });
-                          },
-                          child: Text(catList[i].split('[')[0]),
+                    SizedBox(width: 8,),
+                    Icon(Icons.search),
+                    SizedBox(width: 8), // Add some space between the icon and text field
+                    Expanded(
+                      child: TextField(
+                        controller: _controller,
+                        onChanged: (value) {
+                          setState(() {
+                            _searchText = value;
+                          });
+                        },
+                        onSubmitted: (value) {
+                          setState(() {
+                            bookList.clear();
+                          });
+                          print('Submitted: $value'); // Handle the submitted text here
+                          getBookData(value.replaceAll(" ", "+") + "&submit=" );
+                        },
+                        decoration: InputDecoration(
+                          hintText: 'Search...',
+                          border: InputBorder.none
                         ),
                       ),
+                    ),
                   ],
                 ),
               ),
             ),
-            SizedBox(
-              height: 10,
-            ),
-            Container(
-              padding: EdgeInsets.all(14),
-              child: Text(
-                filter,
-                style: TextStyle(
-                  color: Colors.green,
-                  fontSize: 23,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            SizedBox(
-              height: 10,
-            ),
+        
+        
             for (int i = 0; i < bookList.length; i++)
-              if(bookLinkList.contains(bookList[i].detailPageLink ))
               GestureDetector(
                 onTap: () {
                   print(bookList[i].detailPageLink);
@@ -301,9 +229,25 @@ class _FavoriteBodyState extends State<FavoriteBody> {
                   ),
                 ),
               )
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
           ],
         ),
       ),
     );
   }
 }
+
+
+

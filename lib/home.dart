@@ -1,10 +1,12 @@
 import 'package:competenteducator/favoritePage.dart';
+import 'package:competenteducator/searchPage.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as parser;
 
 import 'book.dart';
 import 'bookDetail.dart';
+import 'dbHelper.dart';
 
 class Home extends StatefulWidget {
   const Home();
@@ -74,12 +76,17 @@ class HomeBody extends StatefulWidget {
   State<HomeBody> createState() => _HomeBodyState();
 }
 
+
+
 class _HomeBodyState extends State<HomeBody> {
+  List<Book> books = [];
+  List<String> bookLinkList = [];
   List<String> catList = [];
   List<String> catLink = [];
   List<Book> bookList = [];
   String filter = "";
   int selectedIndex = -1;
+  bool isLoading = true;
 
   @override
   void initState() {
@@ -89,6 +96,7 @@ class _HomeBodyState extends State<HomeBody> {
   }
 
   void getData() async {
+    await getBookDb();
     final Uri url = Uri.parse(
         'https://directory.doabooks.org/browse?rpp=1000&sort_by=-1&type=classification_text&etal=-1&starts_with=A&order=ASC');
     final response = await http.get(url);
@@ -112,11 +120,20 @@ class _HomeBodyState extends State<HomeBody> {
     } else {
       print('Failed to load page: ${response.statusCode}');
     }
+    setState(() {
+      isLoading = false;
+    });
   }
 
+
+
   void getBookData(String link) async {
+    setState(() {
+      isLoading = true;
+    });
     print(link);
     bookList.clear();
+    await getBookDb();
     final Uri url = Uri.parse('https://directory.doabooks.org/${link}');
     final response = await http.get(url);
     if (response.statusCode == 200) {
@@ -130,25 +147,61 @@ class _HomeBodyState extends State<HomeBody> {
         String abstract = (element.querySelector(".artifact-abstract")!.text.toString());
         String detailPageLink =
         ("https://directory.doabooks.org/${element.querySelector("a")?.attributes['href'].toString()}");
+        if(bookLinkList.contains(detailPageLink)){
+          Book book = Book(bookLink, title, abstract, true, detailPageLink);
+          setState(() {
+            bookList.add(book);
+          });
+        }else{
+          Book book = Book(bookLink, title, abstract, false, detailPageLink);
+          setState(() {
+            bookList.add(book);
+          });
+        }
 
-        Book book = Book(bookLink, title, abstract, false, detailPageLink);
-
-        setState(() {
-          bookList.add(book);
-        });
       }
     } else {
       print('Failed to load page: ${response.statusCode}');
     }
+    setState(() {
+      isLoading = false;
+    });
   }
+
+
+   Future<void> getBookDb() async {
+    DbHelper db = DbHelper();
+    await db.open();
+    books = await db.getBooks();
+    for (var book in books) {
+      bookLinkList.add(book.detailPageLink);
+    }
+   }
+
+   Future<void> addBookDb(int i) async{
+     DbHelper db = DbHelper();
+     await db.open();
+     db.insertBook(bookList[i]);
+     getBookDb();
+     print(bookList[i].detailPageLink);
+   }
+
+   Future<void> deleteBook(String bookLink) async{
+     DbHelper db = DbHelper();
+     await db.open();
+     db.deleteBookByDetailPageLink(bookLink);
+     bookLinkList.clear();
+     getBookDb();
+   }
 
   @override
   Widget build(BuildContext context) {
     print(catList.length);
+    getBookDb();
     return Container(
       color: Colors.white70,
       padding: EdgeInsets.all(7),
-      child: SingleChildScrollView(
+      child:  SingleChildScrollView(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.start,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -215,84 +268,95 @@ class _HomeBodyState extends State<HomeBody> {
             SizedBox(
               height: 10,
             ),
-            for (int i = 0; i < bookList.length; i++)
-              GestureDetector(
-                onTap: () {
-                  print(bookList[i].detailPageLink);
-                  BookDetail.bookLink = bookList[i].detailPageLink;
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => BookDetail()),
-                  );
-                },
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(10.0),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.withOpacity(0.3), // Gölge rengi ve opaklığı
-                        spreadRadius: 2, // Yayılma yarıçapı
-                        blurRadius: 3, // Bulanıklık yarıçapı
-                        offset: Offset(0, 2), // Gölgenin konumu
-                      ),
-                    ],
-                  ),
-                  padding: EdgeInsets.all(10),
-                  margin: EdgeInsets.symmetric(vertical: 10, horizontal: 5),
-                  child: Row(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(10.0),
-                        child: Image.network(
-                          bookList[i].imgLink,
-                          width: 170,
-                          height: 260,
-                          fit: BoxFit.fill,
-                        ),
-                      ),
-                      SizedBox(width: 10),
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            width: 170,
-                            child: Text(
-                              bookList[i].name,
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                          Container(
-                            width: 180,
-                            child: Text(
-                              bookList[i].desc.length <= 180 ? bookList[i].desc : '${bookList[i].desc.substring(0, 180)}...',
-                              style: TextStyle(fontSize: 14),
-                            ),
-                          ),
-                          SizedBox(height: 10),
-                          Container(
-                            width: 180,
-                            alignment: Alignment.center,
-                            child: IconButton(
-                              icon: Icon(
-                                bookList[i].isFavorite ? Icons.favorite : Icons.favorite_border,
-                                color: bookList[i].isFavorite ? Colors.green : null, // Beğenildiğinde rengi yeşile dönüştürür.
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  print(bookList[i].detailPageLink);
-                                  bookList[i].isFavorite = !bookList[i].isFavorite; // İkon durumunu tersine çevirir.
-                                });
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              )
+            isLoading
+                ? Center(child: CircularProgressIndicator()) // Show loading indicator while isLoading is true
+                :  Column(
+               children: [
+                 for (int i = 0; i < bookList.length; i++)
+                   GestureDetector(
+                     onTap: () {
+                       print(bookList[i].detailPageLink);
+                       BookDetail.bookLink = bookList[i].detailPageLink;
+                       BookDetail.book = bookList[i];
+                       Navigator.push(
+                         context,
+                         MaterialPageRoute(builder: (context) => BookDetail()),
+                       );
+                     },
+                     child: Container(
+                       decoration: BoxDecoration(
+                         color: Colors.white,
+                         borderRadius: BorderRadius.circular(10.0),
+                         boxShadow: [
+                           BoxShadow(
+                             color: Colors.grey.withOpacity(0.3), // Gölge rengi ve opaklığı
+                             spreadRadius: 2, // Yayılma yarıçapı
+                             blurRadius: 3, // Bulanıklık yarıçapı
+                             offset: Offset(0, 2), // Gölgenin konumu
+                           ),
+                         ],
+                       ),
+                       padding: EdgeInsets.all(10),
+                       margin: EdgeInsets.symmetric(vertical: 10, horizontal: 5),
+                       child: Row(
+                         children: [
+                           ClipRRect(
+                             borderRadius: BorderRadius.circular(10.0),
+                             child: Image.network(
+                               bookList[i].imgLink,
+                               width: 170,
+                               height: 260,
+                               fit: BoxFit.fill,
+                             ),
+                           ),
+                           SizedBox(width: 10),
+                           Column(
+                             mainAxisAlignment: MainAxisAlignment.start,
+                             crossAxisAlignment: CrossAxisAlignment.start,
+                             children: [
+                               Container(
+                                 width: 170,
+                                 child: Text(
+                                   bookList[i].name,
+                                   style: TextStyle(fontWeight: FontWeight.bold),
+                                 ),
+                               ),
+                               Container(
+                                 width: 180,
+                                 child: Text(
+                                   bookList[i].desc.length <= 180 ? bookList[i].desc : '${bookList[i].desc.substring(0, 180)}...',
+                                   style: TextStyle(fontSize: 14),
+                                 ),
+                               ),
+                               SizedBox(height: 10),
+                               Container(
+                                 width: 180,
+                                 alignment: Alignment.center,
+                                 child: IconButton(
+                                   icon: Icon(
+                                     bookList[i].isFavorite ? Icons.favorite : Icons.favorite_border,
+                                     color: bookList[i].isFavorite ? Colors.green : null, // Beğenildiğinde rengi yeşile dönüştürür.
+                                   ),
+                                   onPressed: () {
+                                     setState(()  {
+                                       if(bookList[i].isFavorite == false){
+                                         addBookDb(i);
+                                       }else{
+                                         deleteBook(bookList[i].detailPageLink);
+                                       }
+                                       bookList[i].isFavorite = !bookList[i].isFavorite; // İkon durumunu tersine çevirir.
+                                     });
+                                   },
+                                 ),
+                               ),
+                             ],
+                           ),
+                         ],
+                       ),
+                     ),
+                   )
+               ],
+             ),
           ],
         ),
       ),
@@ -309,15 +373,8 @@ class SearchPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: Container(
-          width: 180,
-          child: Text(
-          "It's empty here, enter a query in order to find the literature you are interested in.",
-          style: TextStyle(fontSize: 15),
-        ),
-        ),
-      ),
+      body: SearchPageBody()
     );
   }
 }
+
